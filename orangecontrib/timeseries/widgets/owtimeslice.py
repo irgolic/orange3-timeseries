@@ -1,14 +1,13 @@
 import datetime
 from contextlib import contextmanager
 
-import operator
 from collections import OrderedDict
 from numbers import Number
 from os.path import join, dirname
 
 from AnyQt.QtWidgets import QLabel, QDateTimeEdit
 from AnyQt.QtCore import QDateTime, Qt, QSize, QTimer
-from AnyQt.QtGui import QIcon
+from AnyQt.QtGui import QFontDatabase, QFont
 
 from Orange.data import Table, TimeVariable
 from Orange.widgets import widget, gui, settings
@@ -100,6 +99,14 @@ def blockSignals(*objects):
         obj.blockSignals(False)
 
 
+def load_icons_font():
+    fontId = QFontDatabase.addApplicationFont(
+        join(dirname(__file__), 'icons', 'TimeSlice-icons.ttf')
+    )
+    font_family = QFontDatabase.applicationFontFamilies(fontId)[0]
+    return QFont(font_family, 12, QFont.Normal)
+
+
 class OWTimeSlice(widget.OWWidget):
     name = 'Time Slice'
     description = 'Select a slice of measurements on a time interval.'
@@ -160,6 +167,8 @@ class OWTimeSlice(widget.OWWidget):
     step_size = settings.Setting(next(iter(STEP_SIZES)))
     playback_interval = settings.Setting(1)
     slider_values = settings.Setting((0, .2 * MAX_SLIDER_VALUE))
+
+    icons_font = None
 
     def __init__(self):
         super().__init__()
@@ -234,23 +243,21 @@ class OWTimeSlice(widget.OWWidget):
         gui.rubber(playBox)
         gui.rubber(stepThroughBox)
 
-        self._play_icon = QIcon(join(dirname(__file__), 'icons', 'TimeSlice-play.svg'))
-        self._back_icon = QIcon(join(dirname(__file__), 'icons', 'TimeSlice-step_backward.svg'))
-        self._forward_icon = QIcon(join(dirname(__file__), 'icons', 'TimeSlice-step_forward.svg'))
-        self._pause_icon = QIcon(join(dirname(__file__), 'icons', 'TimeSlice-pause.svg'))
+        if self.icons_font is None:
+            self.icons_font = load_icons_font()
 
-        self.step_backward = gui.button(playBox, self, '',
+        self.step_backward = gui.button(playBox, self, '⏪',
                                         callback=lambda: self.play_single_step(backward=True),
                                         autoDefault=False)
-        self.step_backward.setIcon(self._back_icon)
-        self.play_button = gui.button(playBox, self, '',
+        self.step_backward.setFont(self.icons_font)
+        self.play_button = gui.button(playBox, self, '▶️',
                                       callback=self.playthrough,
                                       toggleButton=True, default=True)
-        self.play_button.setIcon(self._play_icon)
-        self.step_forward = gui.button(playBox, self, '',
+        self.play_button.setFont(self.icons_font)
+        self.step_forward = gui.button(playBox, self, '⏩',
                                        callback=self.play_single_step,
                                        autoDefault=False)
-        self.step_forward.setIcon(self._forward_icon)
+        self.step_forward.setFont(self.icons_font)
 
         gui.rubber(playBox)
         intervalBox = gui.vBox(vControlsBox, 'Playback/Tracking interval')
@@ -327,10 +334,10 @@ class OWTimeSlice(widget.OWWidget):
 
         if playing:
             self.play_timer.start()
-            self.play_button.setIcon(self._pause_icon)
+            self.play_button.setText('⏸')
         else:
             self.play_timer.stop()
-            self.play_button.setIcon(self._play_icon)
+            self.play_button.setText('▶️')
 
         # hotfix
         self.repaint()
